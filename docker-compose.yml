@@ -1,0 +1,7 @@
+services:
+  configuration-generator:
+    restart: unless-stopped
+    build: image
+    volumes:
+      - ./data:/data
+    command: "--watch /data/ --format json /data/template.j2 /data/data.json /data/configuration.conf"
