@@ -67,6 +67,9 @@ function validate_watch() {
     local error=false
     for item in "${watch_items[@]}"; do
         if [ ! -e "$item" ]; then
+            if ! $error; then   
+                print_usage
+            fi
             echo "--watch '$item'. The watch location not found."
             error=true
         fi
@@ -76,6 +79,7 @@ function validate_watch() {
 
 function validate_template() {
     if [ ! -f "$template" ]; then
+        print_usage
         echo "<template> '$template'. The file not found."
         return 1
     fi
@@ -83,6 +87,7 @@ function validate_template() {
 
 function validate_input_file() {
     if [ ! -f "$input_file" ]; then
+        print_usage
         echo "<input file> '$input_file'. The file not found."
         return 1
     fi
@@ -91,6 +96,7 @@ function validate_input_file() {
 function validate_output_file() {
     local folder="$(dirname "$output_file")"
     if [ ! -d "$folder" ]; then
+        print_usage
         echo "<output file> '$output_file'. The file's folder '$folder' not found."
         return 1
     fi
@@ -116,6 +122,10 @@ function main() {
     done
 }
 
+function print_usage(){
+    echo "Usage: [--watch <location>]... [--format <type>] <template> <input file> <output file>"
+}
+
 function stop() {
     pkill inotifywait
 }
@@ -123,7 +133,7 @@ function stop() {
 trap stop EXIT
 
 if ! parse_command "$@"; then
-    echo "Usage: [--watch <location>]... [--format <type>] <template> <input file> <output file>"
+    
     exit 1
 fi
 
