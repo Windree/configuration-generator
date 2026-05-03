@@ -4,4 +4,4 @@ services:
     build: image
     volumes:
       - ./data:/data
-    command: "--watch /data/ --format json /data/template.j2 /data/data.json /data/configuration.conf"
+    command: "--watch /data/ --format json --on-completed 'echo A command to run after generate a config' /data/template.j2 /data/data.json /data/configuration.conf"

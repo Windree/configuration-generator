@@ -7,9 +7,11 @@ declare format=
 declare template=
 declare input_file=
 declare output_file=
+declare on_completed=
 
 function parse_command() {
     while [[ $# -gt 0 ]]; do
+    echo "current: $1"
         case "$1" in
             --*)
                 case "$1" in
@@ -26,6 +28,14 @@ function parse_command() {
                             return 1
                         fi
                         format="$2"
+                        shift 2
+                        continue
+                    ;;
+                    --on-completed)
+                        if [ ! -v 2 ] || [ -z "$2" ]; then
+                            return 1
+                        fi
+                        on_completed="$2"
                         shift 2
                         continue
                     ;;
@@ -47,6 +57,7 @@ function parse_command() {
                     shift
                     continue
                 fi
+                echo "Unknown extra command line argument '$1'"
                 return 1
             ;;
         esac
@@ -113,7 +124,9 @@ function main() {
         else
             jinja2 "${j2_args[@]}" --outfile "$output_file" "$template" "$input_file"
         fi
-        
+        if [ -n "$on_completed" ]; then
+            eval "$on_completed" || true
+        fi
         [ $watch_count -eq 0 ] && break
         
         inotifywait_output="$(inotifywait -r -e modify -e create -e delete -e moved_to "${watch_items}" 2> /dev/null)"
@@ -123,7 +136,7 @@ function main() {
 }
 
 function print_usage(){
-    echo "Usage: [--watch <location>]... [--format <type>] <template> <input file> <output file>"
+    echo "Usage: [--watch <location>]... [--format <type>] [--on-completed <command>] <template> <input file> <output file>"
 }
 
 function stop() {
@@ -133,7 +146,6 @@ function stop() {
 trap stop EXIT
 
 if ! parse_command "$@"; then
-    
     exit 1
 fi
 
