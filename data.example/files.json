@@ -1,0 +1,6 @@
+{
+    "files": [
+        {"path":"/tmp/file1.txt"},
+        {"path":"/tmp/file2.txt"}
+    ]
+}

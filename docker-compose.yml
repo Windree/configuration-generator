@@ -4,10 +4,10 @@ services:
     build: image
     volumes:
       - ./data:/data
-    command: "--watch /data/ --format json --on-completed 'echo A command to run after generate a config' /data/template.j2 /data/data.json /data/configuration.conf"
+    command: "--format json --on-completed 'echo The command to run after generation of an output file' --watch /data/ --data-file /data/data.json --data-file /data/files.json /data/template.j2 /data/configuration.conf"
     healthcheck:
       test: ["CMD", "/healthcheck.sh"]
-      interval: 20s
+      interval: 10s
       timeout: 1s
-      retries: 3
+      retries: 2
       start_period: 2s

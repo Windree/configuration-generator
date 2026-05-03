@@ -1,3 +1,9 @@
+[items]
 {% for item in items %}
 value={{ item }}
+{% endfor %}
+
+[files]
+{% for file in files %}
+file={{ file.path }}
 {% endfor %}

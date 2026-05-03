@@ -6,7 +6,7 @@ declare healthcheck_file="/run/status"
 declare -a watch_items=()
 declare format=
 declare template=
-declare input_file=
+declare data_files=()
 declare output_file=
 declare on_completed=
 
@@ -33,6 +33,14 @@ function parse_command() {
                         shift 2
                         continue
                     ;;
+                    --data-file)
+                        if [ ! -v 2 ] || [ -z "$2" ]; then
+                            return 1
+                        fi
+                        data_files+=("$2")
+                        shift 2
+                        continue
+                    ;;
                     --on-completed)
                         if [ ! -v 2 ] || [ -z "$2" ]; then
                             return 1
@@ -49,11 +57,6 @@ function parse_command() {
                     shift
                     continue
                 fi
-                if [ -n "$1" ] && [ -z "$input_file" ]; then
-                    input_file="$1"
-                    shift
-                    continue
-                fi
                 if [ -n "$1" ] && [ -z "$output_file" ]; then
                     output_file="$1"
                     shift
@@ -64,13 +67,13 @@ function parse_command() {
             ;;
         esac
     done
-    [ -n "$template" ] && [ -n "$input_file" ] && [ -n "$output_file" ] || return 1
+    [ -n "$template" ] && [ -n "$output_file" ] || return 1
 }
 
 function validate_all() {
     local error=false
     validate_template || error=true
-    validate_input_file || error=true
+    validate_input_files || error=true
     validate_output_file || error=true
     validate_watch || error=true
     $error && return 1 || return 0
@@ -98,12 +101,18 @@ function validate_template() {
     fi
 }
 
-function validate_input_file() {
-    if [ ! -f "$input_file" ]; then
-        print_usage
-        echo "<input file> '$input_file'. The file not found."
-        return 1
-    fi
+function validate_input_files() {
+    local error=false
+    for item in "${input_files[@]}"; do
+        if [ ! -f "$item" ]; then
+            if ! $error; then   
+                print_usage
+            fi
+            echo "--data-file '$item'. The data file not found."
+            error=true
+        fi
+    done
+    $error && return 1 || return 0
 }
 
 function validate_output_file() {
@@ -119,19 +128,25 @@ function main() {
     local j2_args=()
     local watch_count=${#watch_items[@]}
     local inotifywait_output=
+    local input_files=()
     [ -n "$format" ] && j2_args+=("--format" "$format")
     while true; do
-        if [ ! -f "$input_file" ]; then
-            rm -f "$output_file"
+        input_files=()
+        for file in "${data_files[@]}"; do
+            [ -f "$file" ] && input_files+=("$file")
+        done
+        
+        if [ "${#input_files[@]}" -eq 0 ]; then
+            rm -f "$output_file" "$healthcheck_file"
         else
-            jinja2 "${j2_args[@]}" --outfile "$output_file" "$template" "$input_file"
+            jinja2 "${j2_args[@]}" --outfile "$output_file" "$template" "${input_files[@]}"
+            touch "$healthcheck_file"
         fi
-
-        touch "$healthcheck_file"
 
         if [ -n "$on_completed" ]; then
             eval "$on_completed" || true
         fi
+
         [ $watch_count -eq 0 ] && break
         
         inotifywait_output="$(inotifywait -r -e modify -e create -e delete -e moved_to "${watch_items}" 2> /dev/null)"
@@ -141,7 +156,7 @@ function main() {
 }
 
 function print_usage(){
-    echo "Usage: [--watch <location>]... [--format <type>] [--on-completed <command>] <template> <input file> <output file>"
+    echo "Usage: [--format <type>] [--on-completed <command>] [--watch <location>]... [--data-file <data file>]... <template> <output file>"
 }
 
 function stop() {
