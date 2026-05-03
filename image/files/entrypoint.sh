@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -Eeuxo pipefail
 shopt -s inherit_errexit
 
+declare healthcheck_file="/run/status"
 declare -a watch_items=()
 declare format=
 declare template=
@@ -9,9 +10,10 @@ declare input_file=
 declare output_file=
 declare on_completed=
 
+rm -f "$healthcheck_file"
+
 function parse_command() {
     while [[ $# -gt 0 ]]; do
-    echo "current: $1"
         case "$1" in
             --*)
                 case "$1" in
@@ -124,6 +126,9 @@ function main() {
         else
             jinja2 "${j2_args[@]}" --outfile "$output_file" "$template" "$input_file"
         fi
+
+        touch "$healthcheck_file"
+
         if [ -n "$on_completed" ]; then
             eval "$on_completed" || true
         fi

@@ -5,3 +5,9 @@ services:
     volumes:
       - ./data:/data
     command: "--watch /data/ --format json --on-completed 'echo A command to run after generate a config' /data/template.j2 /data/data.json /data/configuration.conf"
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 20s
+      timeout: 1s
+      retries: 3
+      start_period: 2s
