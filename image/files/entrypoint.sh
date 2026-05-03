@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Eeuxo pipefail
+set -Eeuo pipefail
 shopt -s inherit_errexit
 
 declare healthcheck_file="/run/status"
