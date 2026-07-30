@@ -1,13 +1,8 @@
 services:
   configuration-generator:
-    restart: unless-stopped
+    restart: none
     build: image
+    init: true
     volumes:
       - ./data:/data
-    command: "--format json --on-completed 'echo The command to run after generation of an output file' --watch /data/ --data-file /data/data.json --data-file /data/files.json /data/template.j2 /data/configuration.conf"
-    healthcheck:
-      test: ["CMD", "/healthcheck.sh"]
-      interval: 10s
-      timeout: 1s
-      retries: 2
-      start_period: 2s
+    command: "--data-file=/data/data/data.json --data-file=/data/data/files.json /data/template.j2 /data/output/output.conf --watch=/data/data --on-start='echo configuration generation started' --on-completed='echo configuration generated successfully && touch /data/healthcheck' --on-error='rm -f /data/healthcheck' --on-empty='rm -f /data/healthcheck' --on-changed='echo regenerating configuration' --on-exit='echo Exiting && rm -f /data/healthcheck'"

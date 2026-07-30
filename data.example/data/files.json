@@ -1,0 +1,7 @@
+{
+    "files": [
+        {"path":"/tmp/log.txt"},
+        {"path":"/tmp/list.txt"},
+        {"path":"/tmp/words.txt"}
+    ]
+}

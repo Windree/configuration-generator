@@ -1,0 +1,200 @@
+#!/usr/bin/env fish
+# set -l fish_trace "%f:%l: "
+
+set errors
+set template
+set output_file
+set format
+set data_files
+set watch_items
+set on_start
+set on_completed
+set on_error
+set on_changed
+set on_empty
+set on_exit
+
+function parse_arguments
+    # Define specifications using argparse
+    # = means requires a value, * means argument can be specified multiple times
+    set -l options \
+        'format=?' \
+        'watch=+' \
+        'data-file=+' \
+        'on-start=?' \
+        'on-completed=?' \
+        'on-error=?' \
+        'on-changed=?' \
+        'on-empty=?' \
+        'on-exit=?'
+
+    # Parse arguments from $argv
+    argparse $options -- $argv; or return 1
+
+    # Map parsed values to script variables using Fish's scoped flag variables
+    if set -q _flag_format
+        set format $_flag_format
+    end
+    if set -q _flag_watch
+        set watch_items $_flag_watch
+    end
+    if set -q _flag_data_file
+        set data_files $_flag_data_file
+    end
+    if set -q _flag_on_start
+        set on_start $_flag_on_start
+    end
+    if set -q _flag_on_completed
+        set on_completed $_flag_on_completed
+    end
+    if set -q _flag_on_error
+        set on_error $_flag_on_error
+    end
+    if set -q _flag_on_changed
+        set on_changed $_flag_on_changed
+    end
+    if set -q _flag_on_empty
+        set on_empty $_flag_on_empty
+    end
+    if set -q _flag_on_exit
+        set on_exit $_flag_on_exit
+    end
+    # Remaining positional arguments reside in $argv after argparse runs
+    if test (count $argv) -ne 2
+        set -a errors "Error: Exactly two positional arguments (<template> and <output file>) are required." >&2
+        return 1
+    end
+
+    set template $argv[1]
+    set output_file $argv[2]
+end
+
+function validate_all
+    validate_template; or true
+    validate_input_files; or true
+    validate_output_file; or true
+    validate_watch; or true
+    test (count $errors) -eq 0; or return 1
+end
+
+function validate_watch
+    set -l error false
+    for item in $watch_items
+        if not test -e "$item"
+            if test "$error" = false
+                print_usage
+            end
+            set -a errors "--watch '$item'. The watch location not found."
+            set error true
+        end
+    end
+    set -q error
+    return 1
+end
+
+function validate_template
+    test -f "$template"; and return
+    set -a errors "Error: <template> '$template'. The file not found."
+    return 1
+end
+
+function validate_input_files
+    set -l error false
+    for item in $data_files
+        test -f "$item"; and continue
+        set -a errors "Error: --data-file '$item'. The data file not found."
+        set error true
+    end
+    set -q error
+    return 1
+    return
+end
+
+function validate_output_file
+    set -l folder (dirname "$output_file")
+    test -d "$folder"
+    return
+    set -a errors "Error: <output file>'s folder '$folder' not found."
+    return 1
+end
+
+function generate_file
+    set -l input_files
+
+    if test -n "$on_start"
+        eval "$on_start"
+    end
+
+    for file in $data_files
+        test -f "$file"; or continue
+        set -a input_files "$file"
+    end
+
+    if test (count $input_files) -eq 0
+        rm -f "$output_file"
+        if test -n "$on_empty"
+            eval "$on_empty"
+        end
+    end
+
+    if jinja2 $j2_args --outfile "$output_file" "$template" $input_files
+        if test -n "$on_completed"
+            eval "$on_completed"
+        end
+    else
+        if test -n "$on_error"
+            eval "$on_error"
+        end
+    end
+end
+
+function main
+    set -g j2_args
+    set -l watch_count (count $watch_items)
+    set -l inotifywait_output
+
+    if test -n "$format"
+        set -g j2_args --format "$format"
+    end
+
+    while true
+        generate_file
+
+        if test $watch_count -eq 0
+            break
+        end
+
+        inotifywait -qq -r -e modify -e create -e delete -e moved_to $watch_items 2> /dev/null; or exit 2
+        if test -n "$on_changed"
+            eval "$on_changed"
+        end
+    end
+end
+
+function print_usage
+    echo "Usage: [--format <type>] [--on-start <command>] [--on-completed <command>] [--on-error <command>] [--on-empty <command>] [--on-changed <command>] [--on-exit <command>] [--watch <location>]... [--data-file <data file>]... <template> <output file>"
+end
+
+function cleanup
+    pkill inotifywait
+    if test -n "$on_exit"
+        eval "$on_exit"
+    end
+end
+
+if not parse_arguments $argv
+    print_usage
+    printf '%s\n' $errors
+    exit 1
+end
+
+if not validate_all
+    print_usage
+    printf '%s\n' $errors
+    exit 1
+end
+
+trap cleanup SIGTERM SIGINT
+
+main 
+
