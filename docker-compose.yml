@@ -5,4 +5,15 @@ services:
     init: true
     volumes:
       - ./data:/data
-    command: "--data-file=/data/data/data.json --data-file=/data/data/files.json /data/template.j2 /data/output/output.conf --watch=/data/data --on-start='echo configuration generation started' --on-completed='echo configuration generated successfully && touch /data/healthcheck' --on-error='rm -f /data/healthcheck' --on-empty='rm -f /data/healthcheck' --on-changed='echo regenerating configuration' --on-exit='echo Exiting && rm -f /data/healthcheck'"
+    command:
+      - "--data-file=/data/data/data.json"
+      - "--data-file=/data/data/files.json"
+      - "/data/template.j2"
+      - "/data/output/output.conf"
+      - "--watch=/data/data"
+      - "--on-start=echo configuration generation started"
+      - "--on-completed=echo configuration generated successfully && touch /data/healthcheck"
+      - "--on-error=rm -f /data/healthcheck"
+      - "--on-empty=rm -f /data/healthcheck"
+      - "--on-changed=echo regenerating configuration"
+      - "--on-exit=echo Exiting && rm -f /data/healthcheck"
