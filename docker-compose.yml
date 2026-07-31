@@ -11,9 +11,15 @@ services:
       - "/data/template.j2"
       - "/data/output/output.conf"
       - "--watch=/data/data"
-      - "--on-start=echo configuration generation started"
+      - "--on-start=echo configuration generation started && rm -f /data/healthcheck"
       - "--on-completed=echo configuration generated successfully && touch /data/healthcheck"
       - "--on-error=rm -f /data/healthcheck"
       - "--on-empty=rm -f /data/healthcheck"
       - "--on-changed=echo regenerating configuration"
       - "--on-exit=echo Exiting && rm -f /data/healthcheck"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /data/healthcheck || exit 1"]
+      interval: 5s
+      timeout: 1s
+      retries: 5
+      start_period: 5s
